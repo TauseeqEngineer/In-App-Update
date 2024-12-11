@@ -76,6 +76,39 @@ class AppUpdateManagerHandler(
         }
     }
 
+    fun checkForImmediateUpdate() {
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo: AppUpdateInfo ->
+            val isUpdateAvailable = appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+            val isImmediateUpdateAllowed = appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+
+            when {
+                isUpdateAvailable && isImmediateUpdateAllowed -> {
+                    try {
+                        appUpdateManager.startUpdateFlowForResult(
+                            appUpdateInfo,
+                            AppUpdateType.IMMEDIATE,
+                            activity,
+                            requestCode
+                        )
+                    } catch (exception: Exception) {
+                        exception.message?.let {
+                            updateCallback.onUpdateFailed(it)
+                        }
+                    }
+                }
+                else -> {
+                    updateCallback.onNoUpdateAvailable()
+                }
+            }
+        }.addOnFailureListener {exception->
+            exception.message?.let {
+                updateCallback.onUpdateFailed(it)
+            }
+        }
+    }
+
     fun checkUpdateState() {
         appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
             if (appUpdateInfo.installStatus() == InstallStatus.DOWNLOADED) {
